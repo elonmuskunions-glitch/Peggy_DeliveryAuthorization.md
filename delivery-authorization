@@ -1,0 +1,67 @@
+import base64
+import requests
+
+# ---------- CONFIG ----------
+GITHUB_TOKEN = "YOUR_PERSONAL_ACCESS_TOKEN"  # Must have repo access
+REPO_OWNER = "elonmuskunions-glitch"
+REPO_NAME = "delivery-authorization"
+FILE_PATH_LOCAL = "Combined_Professional_Authorization_Maria.pdf"
+FILE_PATH_REMOTE = "Combined_Professional_Authorization_Maria.pdf"
+COMMIT_MESSAGE = "Add combined professional package delivery authorization for Maria del Socorro Giraldo Vargas"
+BRANCH = "main"
+# ----------------------------
+
+# 1️⃣ Read PDF and encode in base64
+with open(FILE_PATH_LOCAL, "rb") as f:
+    content_base64 = base64.b64encode(f.read()).decode()
+
+# 2️⃣ Upload PDF to GitHub
+url_upload = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH_REMOTE}"
+payload_upload = {
+    "message": COMMIT_MESSAGE,
+    "content": content_base64,
+    "branch": BRANCH
+}
+headers = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json"
+}
+
+response_upload = requests.put(url_upload, json=payload_upload, headers=headers)
+
+if response_upload.status_code in [200, 201]:
+    print("✅ PDF uploaded successfully!")
+else:
+    print("❌ Error uploading PDF")
+    print(response_upload.status_code, response_upload.text)
+    exit()
+
+# 3️⃣ Enable GitHub Pages (branch main, folder root)
+url_pages = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/pages"
+payload_pages = {
+    "source": {
+        "branch": BRANCH,
+        "path": "/"
+    }
+}
+
+response_pages = requests.post(url_pages, json=payload_pages, headers=headers)
+
+if response_pages.status_code in [201, 202]:
+    print("✅ GitHub Pages enabled successfully!")
+else:
+    # Pages might already be enabled, try PATCH
+    response_pages = requests.patch(url_pages, json=payload_pages, headers=headers)
+    if response_pages.status_code in [200, 201, 202]:
+        print("✅ GitHub Pages updated successfully!")
+    else:
+        print("❌ Error enabling GitHub Pages")
+        print(response_pages.status_code, response_pages.text)
+
+# 4️⃣ Print final links
+raw_link = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH}/{FILE_PATH_REMOTE}"
+pages_link = f"https://{REPO_OWNER}.github.io/{REPO_NAME}/{FILE_PATH_REMOTE}"
+
+print("\n📌 Links:")
+print(f"- Raw download link: {raw_link}")
+print(f"- GitHub Pages link: {pages_link}")
